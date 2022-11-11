@@ -7,6 +7,19 @@ namespace MySuperBank
 {
     internal class BankAccount
     {
+        public BankAccount(string name, decimal initialBalance, decimal minimumBalance)
+        {
+            this.Number = accountNumberSeed.ToString();
+            accountNumberSeed++;
+            Owner = name;
+            _minimumBalance = minimumBalance;
+            if (initialBalance>0)
+            MakeDeposit(initialBalance, DateTime.Now, "Initial Balace");
+        }
+        public BankAccount(string name, decimal initialBalance): this(name,initialBalance,0)
+        {
+
+        }
         public string Number { get; }
         public string Owner { get; set; }
 
@@ -23,18 +36,11 @@ namespace MySuperBank
 
             }
         }
+        private readonly decimal _minimumBalance;
 
         private static int accountNumberSeed = 123456789;
 
         public List<Transaction> allTransactions = new List<Transaction>();
-        public BankAccount(string name, decimal initialBalance)
-        {
-            Owner = name;
-
-            MakeDeposit(initialBalance, DateTime.Now, "Initial Balace");
-            this.Number = accountNumberSeed.ToString();
-            accountNumberSeed++;
-    }
 
         public void MakeDeposit(decimal amount,DateTime date, string note)
         {
@@ -52,13 +58,23 @@ namespace MySuperBank
             {
                 throw new ArgumentOutOfRangeException(nameof(amount), "Amount of withdrawal must be positive");
             }
-            if(Balance - amount < 0)
+            Transaction? overdraftTransaction = CheckWithdrawalLimit(Balance - amount < _minimumBalance);
+            Transaction? withdrawal = new(-amount, date, note);
+            allTransactions.Add(withdrawal);
+            if (overdraftTransaction != null)
+                allTransactions.Add(overdraftTransaction);
+        }
+
+        protected virtual Transaction? CheckWithdrawalLimit(bool isOverdrawn)
+        {
+            if(isOverdrawn)
             {
                 throw new InvalidOperationException("Not sufficient funds for this withdrawal");
             }
-            var withdrawal = new Transaction(-amount, date, note);
-            allTransactions.Add(withdrawal);
-
+            else
+            {
+                return default;
+            }
         }
 
         public string GetAccountHistory()
@@ -73,6 +89,10 @@ namespace MySuperBank
                 report.AppendLine($"{item.Date.ToShortDateString()}\t{item.Amount}\t{item.Notes}");
             }
             return report.ToString();
+        }
+
+        public virtual void PerformMonthEndTransactions()
+        { 
         }
     }
 }
